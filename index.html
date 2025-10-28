@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HW-827 Pulse Sensor Monitor</title>
+    <title>MAX30100 Health Monitor</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
+        /* Keep all your existing CSS styles */
         * {
             margin: 0;
             padding: 0;
@@ -37,11 +38,6 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-
         .dashboard {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -59,25 +55,9 @@
             text-align: center;
         }
 
-        .vital-card {
-            transition: transform 0.3s ease;
-        }
-
-        .vital-card:hover {
-            transform: translateY(-5px);
-        }
-
         .vital-icon {
             font-size: 3rem;
             margin-bottom: 15px;
-        }
-
-        .heart-rate .vital-icon {
-            color: #e74c3c;
-        }
-
-        .signal .vital-icon {
-            color: #3498db;
         }
 
         .vital-value {
@@ -90,9 +70,8 @@
             color: #e74c3c;
         }
 
-        .signal .vital-value {
+        .oxygen .vital-value {
             color: #3498db;
-            font-size: 2.5rem;
         }
 
         .vital-label {
@@ -100,12 +79,6 @@
             color: #666;
             text-transform: uppercase;
             letter-spacing: 1px;
-        }
-
-        .vital-unit {
-            font-size: 1.5rem;
-            color: #999;
-            margin-left: 5px;
         }
 
         .finger-status {
@@ -126,6 +99,11 @@
             background-color: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
+        }
+
+        .no-data {
+            color: #6c757d;
+            font-style: italic;
         }
 
         .connection-status {
@@ -157,68 +135,13 @@
             50% { transform: scale(1.05); }
             100% { transform: scale(1); }
         }
-
-        .status-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .status-item {
-            text-align: center;
-            padding: 15px;
-            background: rgba(255,255,255,0.5);
-            border-radius: 10px;
-        }
-
-        .status-value {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #2c3e50;
-        }
-
-        .status-label {
-            font-size: 0.9rem;
-            color: #7f8c8d;
-            margin-top: 5px;
-        }
-
-        .no-data {
-            color: #6c757d;
-            font-style: italic;
-        }
-
-        .signal-visual {
-            width: 100%;
-            height: 100px;
-            background: #f8f9fa;
-            border-radius: 10px;
-            margin: 15px 0;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .signal-wave {
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            background: linear-gradient(90deg, transparent 50%, rgba(52, 152, 219, 0.3) 50%);
-            background-size: 20px 100%;
-            animation: wave 1s linear infinite;
-        }
-
-        @keyframes wave {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(-20px); }
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>💓 HW-827 Pulse Monitor</h1>
-            <p>Real-time Heart Rate Monitoring with Pulse Sensor</p>
+            <h1>❤️ MAX30100 Health Monitor</h1>
+            <p>Real-time Heart Rate & Blood Oxygen Monitoring</p>
         </div>
 
         <div class="connection-status" id="connectionStatus">
@@ -242,59 +165,29 @@
                 <div class="vital-label">Heart Rate <span class="vital-unit">BPM</span></div>
             </div>
 
-            <div class="card vital-card signal">
-                <div class="vital-icon">📊</div>
-                <div class="vital-value" id="signalValue">--</div>
-                <div class="vital-label">Signal Strength</div>
-                <div class="signal-visual">
-                    <div class="signal-wave" id="signalWave"></div>
-                </div>
+            <div class="card vital-card oxygen">
+                <div class="vital-icon">🌬️</div>
+                <div class="vital-value" id="oxygenLevel">--</div>
+                <div class="vital-label">Blood Oxygen <span class="vital-unit">%</span></div>
             </div>
         </div>
 
         <div class="card">
-            <h3>📈 Sensor Data & Status</h3>
-            <div class="status-grid">
-                <div class="status-item">
-                    <div class="status-value" id="signalMin">--</div>
-                    <div class="status-label">Signal Min</div>
+            <h3>📊 Status Overview</h3>
+            <div style="display: flex; justify-content: space-around; flex-wrap: wrap; margin-top: 20px;">
+                <div style="text-align: center;">
+                    <div class="status-value" id="sensorStatus">Checking...</div>
+                    <div class="status-label">Sensor Status</div>
                 </div>
-                <div class="status-item">
-                    <div class="status-value" id="signalMax">--</div>
-                    <div class="status-label">Signal Max</div>
+                <div style="text-align: center;">
+                    <div class="status-value" id="consecutiveReadings">0</div>
+                    <div class="status-label">Valid Readings</div>
                 </div>
-                <div class="status-item">
-                    <div class="status-value" id="signalAmplitude">--</div>
-                    <div class="status-label">Amplitude</div>
-                </div>
-                <div class="status-item">
-                    <div class="status-value" id="beatCount">--</div>
-                    <div class="status-label">Beat Count</div>
-                </div>
-                <div class="status-item">
-                    <div class="status-value" id="lastUpdate">--</div>
+                <div style="text-align: center;">
+                    <div class="status-value" id="lastUpdate">Never</div>
                     <div class="status-label">Last Update</div>
                 </div>
             </div>
-        </div>
-
-        <div class="card">
-            <h3>📋 Recent Readings</h3>
-            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
-                <thead>
-                    <tr style="background-color: #34495e; color: white;">
-                        <th style="padding: 12px; text-align: left;">Time</th>
-                        <th style="padding: 12px; text-align: left;">BPM</th>
-                        <th style="padding: 12px; text-align: left;">Signal</th>
-                        <th style="padding: 12px; text-align: left;">Finger</th>
-                    </tr>
-                </thead>
-                <tbody id="readingsTable">
-                    <tr>
-                        <td colspan="4" style="padding: 12px; text-align: center;">Waiting for data...</td>
-                    </tr>
-                </tbody>
-            </table>
         </div>
     </div>
 
@@ -306,25 +199,16 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // DOM elements
         const heartRateElement = document.getElementById('heartRate');
-        const signalValueElement = document.getElementById('signalValue');
+        const oxygenLevelElement = document.getElementById('oxygenLevel');
         const connectionStatusElement = document.getElementById('connectionStatus');
-        const signalMinElement = document.getElementById('signalMin');
-        const signalMaxElement = document.getElementById('signalMax');
-        const signalAmplitudeElement = document.getElementById('signalAmplitude');
-        const beatCountElement = document.getElementById('beatCount');
+        const sensorStatusElement = document.getElementById('sensorStatus');
+        const consecutiveReadingsElement = document.getElementById('consecutiveReadings');
         const lastUpdateElement = document.getElementById('lastUpdate');
-        const readingsTableElement = document.getElementById('readingsTable');
         const fingerStatusElement = document.getElementById('fingerStatus');
         const fingerMessageElement = document.getElementById('fingerMessage');
         const fingerIconElement = document.getElementById('fingerIcon');
         const fingerStatusCard = document.querySelector('#fingerStatusCard');
-        const heartRateCard = document.querySelector('.heart-rate');
-        const signalWaveElement = document.getElementById('signalWave');
-
-        let lastReadingTime = 0;
-        const recentReadings = [];
 
         // Listen for new readings
         const readingsRef = database.ref('readings');
@@ -337,19 +221,6 @@
                 
                 updateDashboard(reading);
                 updateConnectionStatus(true);
-                
-                // Add to recent readings (keep last 8)
-                recentReadings.unshift({
-                    id: readingId,
-                    ...reading,
-                    timestamp: new Date().toLocaleTimeString()
-                });
-                
-                if (recentReadings.length > 8) {
-                    recentReadings.pop();
-                }
-                
-                updateReadingsTable();
             }
         }, (error) => {
             console.error('Firebase error:', error);
@@ -362,28 +233,28 @@
 
             // Update heart rate
             if (reading.finger_detected && reading.hr > 0) {
-                heartRateElement.textContent = reading.hr;
+                heartRateElement.textContent = Math.round(reading.hr);
                 heartRateElement.classList.remove('no-data');
-                
-                // Add pulse animation
-                heartRateCard.classList.add('pulse');
-                setTimeout(() => heartRateCard.classList.remove('pulse'), 1000);
             } else {
                 heartRateElement.textContent = '--';
                 heartRateElement.classList.add('no-data');
             }
 
-            // Update signal value
-            signalValueElement.textContent = reading.raw_signal;
-            
-            // Update signal visualization
-            updateSignalVisualization(reading.raw_signal);
+            // Update oxygen level
+            if (reading.finger_detected && reading.spo2 > 0) {
+                oxygenLevelElement.textContent = reading.spo2.toFixed(1);
+                oxygenLevelElement.classList.remove('no-data');
+            } else {
+                oxygenLevelElement.textContent = '--';
+                oxygenLevelElement.classList.add('no-data');
+            }
 
-            // Update signal metrics
-            signalMinElement.textContent = reading.signal_min;
-            signalMaxElement.textContent = reading.signal_max;
-            signalAmplitudeElement.textContent = reading.signal_amplitude;
-            beatCountElement.textContent = reading.beat_count || 0;
+            // Update sensor status
+            sensorStatusElement.textContent = reading.sensor_available ? 
+                '🟢 Connected' : '🔴 Disconnected';
+
+            // Update consecutive readings
+            consecutiveReadingsElement.textContent = reading.consecutive_readings || 0;
 
             // Update last update time
             lastUpdateElement.textContent = new Date().toLocaleTimeString();
@@ -405,41 +276,6 @@
             }
         }
 
-        function updateSignalVisualization(signalValue) {
-            // Adjust wave animation speed based on signal value
-            const speed = Math.max(0.5, Math.min(2, signalValue / 2000));
-            signalWaveElement.style.animationDuration = `${1 / speed}s`;
-            
-            // Change wave color based on signal strength
-            if (signalValue > 2000) {
-                signalWaveElement.style.background = 'linear-gradient(90deg, transparent 50%, rgba(46, 204, 113, 0.5) 50%)';
-            } else if (signalValue > 1000) {
-                signalWaveElement.style.background = 'linear-gradient(90deg, transparent 50%, rgba(52, 152, 219, 0.5) 50%)';
-            } else {
-                signalWaveElement.style.background = 'linear-gradient(90deg, transparent 50%, rgba(231, 76, 60, 0.5) 50%)';
-            }
-        }
-
-        function updateReadingsTable() {
-            if (recentReadings.length === 0) {
-                readingsTableElement.innerHTML = `
-                    <tr>
-                        <td colspan="4" style="padding: 12px; text-align: center;">Waiting for data...</td>
-                    </tr>
-                `;
-                return;
-            }
-
-            readingsTableElement.innerHTML = recentReadings.map(reading => `
-                <tr>
-                    <td style="padding: 8px; border-bottom: 1px solid #ecf0f1;">${reading.timestamp}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #ecf0f1;">${reading.finger_detected && reading.hr > 0 ? reading.hr + ' BPM' : '--'}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #ecf0f1;">${reading.raw_signal}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #ecf0f1;">${reading.finger_detected ? '🟢 Yes' : '🔴 No'}</td>
-                </tr>
-            `).join('');
-        }
-
         function updateConnectionStatus(connected) {
             if (connected) {
                 connectionStatusElement.textContent = '🟢 Connected to Firebase';
@@ -452,8 +288,9 @@
 
         // Initial connection check
         setTimeout(() => {
-            if (lastReadingTime === 0) {
+            if (!firebase.apps.length) {
                 updateConnectionStatus(false);
+                sensorStatusElement.textContent = '🔴 No Data Received';
             }
         }, 5000);
     </script>
